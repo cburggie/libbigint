@@ -1,5 +1,7 @@
 #include "./Chunk.h"
 
+#define ERROR(x) if (x) return NULL
+
 
 /* ##### private method declarations ##### */
 
@@ -40,3 +42,5 @@ Chunk * trimChunk(Chunk * self)
 
 
 /* ##### private method definitions ##### */
+
+
