@@ -1,21 +1,37 @@
-#include "./BigInt.h"
+#include "BigInt.h"
+#include "Chunk.h"
 #include <stdlib.h>
 
 #define ERROR(x) if(x) return 1
 #define MIN(a,b) a < b ? a : b
 #define MAX(a,b) a > b ? a : b
+
 #define BIGINT_DEBUG
 
+/* ##### structures ##### */
 
-/* ##### private method declarations ##### */
+struct BigInt
+{
+	Chunk *first;
+	Chunk *last;
+	int parity;
+	int length; //length in chunks
+};
+
+
+
+/* ##### private member declarations ##### */
 
 static int reset(BigInt * self);
 static int append(BigInt * self, Chunk * chunk);
 
-static char hex[] = {
+const static int charsPerUint = 2 * sizeof(unsigned int);
+const static char hex[] = {
 		'0', '1', '2', '3', '4', '5', '6', '7',
 		'8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
 	};
+
+static int uintToHex(char * target, unsigned int uint);
 
 
 
@@ -79,13 +95,22 @@ void freeBigInt(BigInt * self)
 
 
 
+
+int lengthBigInt(BigInt * self)
+{
+	if (!self) return 0;
+	return self->length;
+}
+
+
+
 int setValue(BigInt * self, int length, unsigned int * value)
 {
 	
 	ERROR(!self || !value);
 	
-	int numChunks = length / CHUNKWIDTH;
-	if (length % CHUNKWIDTH) numChunks++;
+	int numChunks = length / CHUNKSIZE;
+	if (length % CHUNKSIZE) numChunks++;
 	
 	//trim chunks that overflow the value array
 	if (self->length > numChunks)
@@ -116,7 +141,7 @@ int setValue(BigInt * self, int length, unsigned int * value)
 	//loop until out of chunks
 	while (chunk)
 	{
-		chunk->length = MIN(CHUNKWIDTH, length);
+		chunk->length = MIN(CHUNKSIZE, length);
 		
 		for (chunkIndex = 0; chunkIndex < chunk->length; chunkIndex++)
 		{
@@ -130,52 +155,36 @@ int setValue(BigInt * self, int length, unsigned int * value)
 	
 }
 
-/*
+
 
 char * toString(BigInt * self)
 {
-	int bytecount = 0;
-	BigIntChunk * chunk = self->first;
-	while (chunk != NULL)
+	
+	if (!self) return NULL;
+	
+	int numChars = 1 + self->length * CHUNKSIZE;
+	
+	char * string = (char *) malloc( sizeof(char) * numChars );
+	
+	Chunk * chunk;
+	
+	int index, width = sizeof(char) * charsPerUint;
+	char *p = string;
+	
+	for (chunk = self->first; chunk; chunk = chunk->next)
 	{
-		bytecount += sizeof(int) * chunk->length;
-		chunk = chunk->next;
-	}
-	
-	char * string = malloc( sizeof(char) * (2 * bytecount + 1) );
-	string[2* bytecount + 1] = '\0';
-	
-	int sIndex = 0, cIndex, i;
-	chunk = self->first;
-	
-	while (chunk != NULL)
-	{
-		for (cIndex = 0; cIndex < chunk->length; cIndex++)
+		for (index = 0; index < chunk->length; index++)
 		{
-			i = chunk->value[cIndex];
-			string[sIndex] = hex[i % 16];
-			sIndex++; i = i >> 4;
-			string[sIndex] = hex[i % 16];
-			sIndex++; i = i >> 4;
-			string[sIndex] = hex[i % 16];
-			sIndex++; i = i >> 4;
-			string[sIndex] = hex[i % 16];
-			sIndex++; i = i >> 4;
-			string[sIndex] = hex[i % 16];
-			sIndex++; i = i >> 4;
-			string[sIndex] = hex[i % 16];
-			sIndex++; i = i >> 4;
-			string[sIndex] = hex[i % 16];
-			sIndex++; i = i >> 4;
-			string[sIndex] = hex[i % 16];
-			sIndex++; i = i >> 4;
+			uintToHex(p, chunk->value[index]);
+			p += width;
 		}
-		
-		chunk = chunk->next;
 	}
 	
 	return string;
+	
 }
+
+/*
 
 BigInt * add(BigInt * self, BigInt * bi)
 {
@@ -217,7 +226,7 @@ BigInt * add(BigInt * self, BigInt * bi)
 				chunk = chunk->next;
 			}
 			
-			else if (index < CHUNKWIDTH)
+			else if (index < CHUNKSIZE)
 			{
 				chunk->length = index + 1;
 				chunk->value[index] = 0;
@@ -258,13 +267,15 @@ static int reset(BigInt * self)
 	Chunk * p = trimChunk(self->first);
 	if (p) free(p);
 	
+	self->length = 0;
+	
 	return 0;
 }
 
 
 static int append(BigInt * self, Chunk * chunk)
 {
-	ERROR(!self || !chunk);
+	if (!self || !chunk) return 1;
 	
 	self->length++;
 	chunk->prev = self->last;
@@ -273,6 +284,27 @@ static int append(BigInt * self, Chunk * chunk)
 	
 	return 0;
 }
+
+
+static int uintToHex(char * target, unsigned int uint)
+{
+	
+	int i;
+	
+	for (i = 0; i < charsPerUint; i++)
+	{
+		target[i] = hex[uint & 0x0f];
+		uint >>= 4;
+	}
+	
+	target[charsPerUint] = '\0';
+	
+	return 0;
+	
+}
+
+
+
 
 
 
