@@ -182,7 +182,7 @@ char * toString(BigInt * self)
 	
 }
 
-/*
+
 
 BigInt * add(BigInt * self, BigInt * arg)
 {
@@ -196,11 +196,135 @@ BigInt * add(BigInt * self, BigInt * arg)
 		return NULL;
 	}
 	
+	/* 
+	 * This is a pain in the ass. We need to iterate through each of the BigInts
+	 * and add arg to self, while watching for overflows so we can carry. 
+	 * 
+	 * Things we need to watch out for:
+	 *   * Chunks that are not full
+	 *   * Self is shorter than arg and needs to be extended.
+	 *   * arg is shorter than self and we have a trailing carry.
+	 * 
+	 * Carry detection is accomplished by watching for a sum that is less than
+	 * either addend
+	 */
 	
 	
+	
+	unsigned int sum, carry = 0;
+	int li = 0, ri = 0; // left index, right index
+	Chunk * lc = self->first; //left chunk
+	Chunk * rc = arg->first; // right chunk
+	
+	if (!lc)
+	{
+		append(self, newChunk());
+		lc = self->first;
+		lc->value[0] = 0;
+		lc->length++;
+	}
+	
+	//get first index
+	while (li >= lc->length) lc = lc->next;
+	while (ri >= rc->length) rc = rc->next;
+	
+	while (rc)
+	{
+		for (ri = 0; ri < rc->length; ri++)
+		{
+			
+			sum = carry + lc->value[li] + rc->value[ri];
+			if (sum < lc->value[li] || sum < rc->value[ri]) carry = 1;
+			else carry = 0;
+			
+			//increment left index
+			li++;
+			if (li == lc->length) // end of this chunk?
+			{
+				if (lc->next) // is there a next chunk?
+				{
+					li = 0;
+					lc = lc->next;
+					#ifdef BIGINT_DEBUG
+					if (li == lc->length);
+					{
+						printf("empty chunk in add()\n");
+						return NULL;
+					}
+					#endif
+				}
+				
+				else if (lc->length < CHUNKSIZE)
+				{
+					lc->value[li] = 0; lc->length++;
+				}
+				
+				else
+				{
+					lc = newChunk();
+					append(self,lc);
+					lc->value[0] = 0; lc->length++;
+				}
+			}
+		}
+		
+		//increment right chunk
+		do {
+			rc = rc->next;
+		} while (rc && rc->length);
+		
+	}
+	
+	while (carry)
+	{
+		sum = lc->value[li] + carry;
+		if (sum != 0)
+		{
+			carry = 0;
+		}
+		
+		else //increment left index
+		{
+			
+			li++;
+			if (li == lc->length) // end of this chunk?
+			{
+				if (lc->next) // is there a next chunk?
+				{
+					li = 0;
+					lc = lc->next;
+					#ifdef BIGINT_DEBUG
+					if (!lc->length);
+					{
+						printf("empty chunk in add()\n");
+						return NULL;
+					}
+					#endif
+				}
+				
+				else if (lc->length < CHUNKSIZE)
+				{
+					lc->value[li] = 0; lc->length++;
+				}
+				
+				else
+				{
+					lc = newChunk();
+					append(self,lc);
+					lc->value[0] = 0; lc->length++;
+				}
+				
+			} // done finding next real chunk
+			
+		} //done incrementing
+		
+	} // done doing final carry
+	
+	// finally done for good
+	return self;
 }
 
-*/
+
 
 /* ##### private member definitions ##### */
 
