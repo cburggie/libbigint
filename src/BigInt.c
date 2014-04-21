@@ -1,5 +1,6 @@
 #include <BigInt.h>
 #include <Chunk.h>
+#include <Iterator.h>
 #include <stdlib.h>
 
 #define ERROR(x) if(x) return 1
@@ -7,7 +8,10 @@
 #define MAX(a,b) a > b ? a : b
 
 /* ##### types ##### */
+
 typedef struct Iterator Iterator;
+
+
 
 /* ##### structures ##### */
 
@@ -29,13 +33,6 @@ struct Iterator
 
 
 /* ##### private member declarations ##### */
-
-static Iterator * iterate(BigInt * obj);
-static Iterator * IT_next(Iterator * self);
-static Iterator * IT_next_with_extend(Iterator * self);
-static Iterator * IT_set(Iterator * self, unsigned int value);
-static unsigned int IT_get(Iterator * self);
-
 static int reset(BigInt * self);
 static int append(BigInt * self, Chunk * chunk);
 
@@ -46,6 +43,12 @@ const static char hex[] = {
 	};
 
 static int uintToHex(char * target, unsigned int uint);
+
+static Iterator * iterate(BigInt * obj);
+static Iterator * IT_next(Iterator * self);
+static Iterator * IT_next_with_extend(Iterator * self);
+static Iterator * IT_set(Iterator * self, unsigned int value);
+static unsigned int IT_get(Iterator * self);
 
 
 
@@ -163,6 +166,7 @@ int setValue(BigInt * self, int length, unsigned int * value)
 		}
 		
 		chunk = chunk->next;
+		length -= CHUNKSIZE;
 	}
 	
 	return 0;
@@ -176,24 +180,21 @@ char * toString(BigInt * self)
 	
 	if (!self) return NULL;
 	
-	int numChars = 1 + self->length * CHUNKSIZE;
+	int numChars = 1 + charsPerUint * self->length * CHUNKSIZE;
 	
 	char * string = (char *) malloc( sizeof(char) * numChars );
+	int i; for (i = 0; i < numChars; i++) string[i] = '\0';
 	
-	Chunk * chunk;
-	
-	int index, width = sizeof(char) * charsPerUint;
+	int width = sizeof(char) * charsPerUint;
 	char *p = string;
 	
-	for (chunk = self->first; chunk; chunk = chunk->next)
-	{
-		for (index = 0; index < chunk->length; index++)
-		{
-			uintToHex(p, chunk->value[index]);
-			p += width;
-		}
-	}
+	Iterator * iterator = iterate(self);
 	
+	do {
+		uintToHex(p, IT_get(iterator));
+		p += width;
+	} while ( IT_next(iterator) );
+	*p = '\0';
 	return string;
 	
 }
@@ -212,59 +213,44 @@ BigInt * add(BigInt * self, BigInt * arg)
 		return NULL;
 	}
 	
-	/* 
-	 * This is a pain in the ass. We need to iterate through each of the BigInts
-	 * and add arg to self, while watching for overflows so we can carry. 
-	 * 
-	 * Things we need to watch out for:
-	 *   * Chunks that are not full
-	 *   * Self is shorter than arg and needs to be extended.
-	 *   * arg is shorter than self and we have a trailing carry.
-	 * 
-	 * Carry detection is accomplished by watching for a sum that is less than
-	 * either addend
-	 */
+	unsigned int sum, carry = 0, selfv, argv;
 	
+	Iterator * selfi = iterate(self);
+	Iterator * argi = iterate(arg);
 	
-	
-	unsigned int sum, carry = 0, lv, rv;
-	
-	Iterator * li = iterate(self);
-	Iterator * ri = iterate(arg);
-	
-	if (!li->chunk)
+	if (!selfi->chunk)
 	{
-		li->chunk = newChunk();
-		li->chunk->value[0] = 0;
-		li->chunk->length++;
-		append(self, li->chunk);
+		selfi->chunk = newChunk();
+		selfi->chunk->value[0] = 0;
+		selfi->chunk->length++;
+		append(self, selfi->chunk);
 	}
 	
-	while (ri->chunk)
+	while (argi->chunk)
 	{
-		lv = IT_get(li);
-		rv = IT_get(ri);
+		selfv = IT_get(selfi);
+		argv = IT_get(argi);
 		
-		sum = carry + lv + rv;
+		sum = carry + selfv + argv;
 		
-		if (sum < lv || sum < rv) carry = 1;
+		if (sum < selfv || sum < argv) carry = 1;
 		else carry = 0;
 		
-		IT_set(li, sum);
-		IT_next_with_extend(li);
-		IT_next(ri);
+		IT_set(selfi, sum);
+		IT_next_with_extend(selfi);
+		IT_next(argi);
 	}
 	
 	while (carry)
 	{
-		lv = IT_get(li);
+		selfv = IT_get(selfi);
 		
-		sum = carry + lv;
+		sum = carry + selfv;
 		
-		IT_set(li, sum);
+		IT_set(selfi, sum);
 		
 		if (sum > 0) carry = 0;
-		else IT_next_with_extend(li);
+		else IT_next_with_extend(selfi);
 		
 	} // done doing final carry
 	
@@ -274,6 +260,56 @@ BigInt * add(BigInt * self, BigInt * arg)
 
 
 /* ##### private member definitions ##### */
+
+
+
+static int reset(BigInt * self)
+{
+	if (!self)
+	{
+		return 1;
+	}
+	
+	Chunk * p = trimChunk(self->first);
+	if (p) free(p);
+	
+	self->length = 0;
+	
+	return 0;
+}
+
+
+static int append(BigInt * self, Chunk * chunk)
+{
+	if (!self || !chunk) return 1;
+	
+	self->length++;
+	chunk->prev = self->last;
+	self->last->next = chunk;
+	self->last = chunk;
+	
+	return 0;
+}
+
+
+static int uintToHex(char * target, unsigned int uint)
+{
+	
+	int i;
+	
+	for (i = 0; i < charsPerUint; i++)
+	{
+		target[i] = hex[uint % 16];
+		uint /= 16;
+	}
+	
+	target[charsPerUint] = (char) 0x00;//'\0';
+	
+	return 0;
+	
+}
+
+
 
 static Iterator * iterate(BigInt * obj)
 {
@@ -299,7 +335,7 @@ static Iterator * iterate(BigInt * obj)
 }
 
 
-
+// return NULL if depleted, otherwise returns address of self
 static Iterator * IT_next(Iterator * self)
 {
 	if (!self)
@@ -376,7 +412,7 @@ static Iterator * IT_set(Iterator * self, unsigned int value)
 
 
 
-static unsigned int IT_get(Iterator * self)
+unsigned int IT_get(Iterator * self)
 {
 	if (!self) return 0;
 	
@@ -387,57 +423,5 @@ static unsigned int IT_get(Iterator * self)
 	
 	else return 0;
 }
-
-
-
-static int reset(BigInt * self)
-{
-	if (!self)
-	{
-		return 1;
-	}
-	
-	Chunk * p = trimChunk(self->first);
-	if (p) free(p);
-	
-	self->length = 0;
-	
-	return 0;
-}
-
-
-static int append(BigInt * self, Chunk * chunk)
-{
-	if (!self || !chunk) return 1;
-	
-	self->length++;
-	chunk->prev = self->last;
-	self->last->next = chunk;
-	self->last = chunk;
-	
-	return 0;
-}
-
-
-static int uintToHex(char * target, unsigned int uint)
-{
-	
-	int i;
-	
-	for (i = 0; i < charsPerUint; i++)
-	{
-		target[i] = hex[uint & 0x0f];
-		uint >>= 4;
-	}
-	
-	target[charsPerUint] = '\0';
-	
-	return 0;
-	
-}
-
-
-
-
 
 

@@ -13,6 +13,7 @@ CC = gcc ${COPT}
 
 # Targets
 DIR = ./build
+HDR = ./include/BigInt.h ./include/Chunk.h
 OBJ = ${DIR}/BigInt.o ${DIR}/Chunk.o
 TEXE = ${DIR}/testBigInt.x ${DIR}/testChunk.x
 
@@ -29,14 +30,13 @@ ${DIR}:
 
 
 
-${DIR}/BigInt.o: src/BigInt.c include/BigInt.h include/Chunk.h
+${DIR}/BigInt.o: src/BigInt.c ${HDR}
 	${CC} -c -o $@ $<
 
 
 
 ${DIR}/Chunk.o: src/Chunk.c include/Chunk.h
 	${CC} -c -o $@ $<
-
 
 
 clean:
@@ -58,7 +58,7 @@ test: ${DIR} ${TEXE}
 
 
 
-${DIR}/testBigInt.x: ${DIR}/testBigInt.o ${DIR}/BigInt.o ${DIR}/Chunk.o
+${DIR}/testBigInt.x: ${DIR}/testBigInt.o ${OBJ}
 	${CC} -o $@ $^
 
 
@@ -66,11 +66,12 @@ ${DIR}/testBigInt.x: ${DIR}/testBigInt.o ${DIR}/BigInt.o ${DIR}/Chunk.o
 ${DIR}/testChunk.x:
 	@echo
 	@echo "testChunk.x not implemented yet"
+	touch $@
 	@echo
 
 
 
-${DIR}/testBigInt.o: test/testBigInt.c test/test.h src/BigInt.c include/BigInt.h
+${DIR}/testBigInt.o: test/testBigInt.c test/test.h include/BigInt.h
 	${CC} -c -o $@ $<
 
 

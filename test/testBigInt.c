@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <BigInt.h>
+#include <Iterator.h>
 #include <Chunk.h>
 #include "test.h"
 
@@ -7,6 +8,7 @@
 /* ##### Prototypes ##### */
 
 int testSetValue(BigInt * obj);
+int testToString(int length);
 //int testAdd(void);
 
 
@@ -44,6 +46,48 @@ int testSetValue(BigInt * obj)
 	
 }
 
+int testToString(int length)
+{
+	int i, error = 0, charsPerUint = 2 * sizeof(unsigned int);
+	
+	unsigned int array[length];
+	for (i = 0; i < length; i++) array[i] = (unsigned int) (-1);
+	
+	BigInt * obj = newBigInt();
+	
+	setValue(obj, length, array);
+	
+	int strlen = length * charsPerUint;
+	char * string = toString(obj);
+	
+	for (i = 0; i < strlen; i++)
+	{
+		if (string[i] != 'f')
+		{
+			printf("error in toString():\nis: %s\nshould be all 'f's\n",string);
+			error += 1;
+			break;
+		}
+	}
+	
+	if (string[strlen])
+	{
+		printf("error in toString(): ");
+		printf("not null terminated correctly at position %i", strlen);
+		printf(". Has value %i, but should ", (int) string[strlen] );
+		printf("have value %i.\n", (int) '\0');
+		error += 1;
+	}
+	
+	freeBigInt(obj);
+	free(string);
+	
+	return error;
+	
+	
+	
+}
+
 
 //int testAdd(void)
 
@@ -73,6 +117,11 @@ int main(void)
 	err += doTest(testSetValue(obj), "setValue()");
 	
 	freeBigInt(obj);
+	
+	err += doTest(testToString(15), "toString()");
+	
+	
+	
 	
 	if (err)
 	{
