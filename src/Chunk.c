@@ -1,4 +1,4 @@
-#include "./Chunk.h"
+#include <Chunk.h>
 
 #define ERROR(x) if (x) return NULL
 

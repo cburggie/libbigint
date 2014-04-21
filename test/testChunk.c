@@ -1,6 +1,6 @@
 #include <stdio.h>
+#include <Chunk.h>
 #include "test.h"
-#include "../src/Chunk.h"
 
 
 /* ##### Prototypes ##### */

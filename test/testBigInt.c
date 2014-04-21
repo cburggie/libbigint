@@ -1,7 +1,7 @@
 #include <stdio.h>
+#include <BigInt.h>
+#include <Chunk.h>
 #include "test.h"
-#include "../src/BigInt.h"
-#include "../src/Chunk.h"
 
 
 /* ##### Prototypes ##### */

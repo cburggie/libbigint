@@ -1,12 +1,10 @@
-#include "BigInt.h"
-#include "Chunk.h"
+#include <BigInt.h>
+#include <Chunk.h>
 #include <stdlib.h>
 
 #define ERROR(x) if(x) return 1
 #define MIN(a,b) a < b ? a : b
 #define MAX(a,b) a > b ? a : b
-
-#define BIGINT_DEBUG
 
 /* ##### structures ##### */
 
@@ -186,70 +184,19 @@ char * toString(BigInt * self)
 
 /*
 
-BigInt * add(BigInt * self, BigInt * bi)
+BigInt * add(BigInt * self, BigInt * arg)
 {
 	
-	if (!self || !bi)
+	if (!self || !arg)
 	{
 		#ifdef BIGINT_DEBUG
-		printf("Error calling add() method. Null argument passed.\n");
+		if (!self) printf("first arg to add() is null\n");
+		if (!arg)  printf("second arg to add() is null\n");
 		#endif
-
 		return NULL;
 	}
 	
-	if (!self->first)
-	{
-		#ifdef BIGINT_DEBUG
-		printf("Error calling add() method. Object has no first chunk.\n");
-		#endif
-		
-		append(self, newChunk());
-	}
 	
-	//setup location in sum
-	BigIntChunk * chunk = self->first;
-	int index = 0;
-	
-	//enumerate what we're adding
-	EnumeratedBigInt * iterator = enumerate(bi);
-	int * p = next(iterator);
-	int value;
-	
-	while (p != NULL)
-	{
-		while (index == chunk->length)
-		{
-			if (chunk->next != NULL)
-			{
-				index = 0;
-				chunk = chunk->next;
-			}
-			
-			else if (index < CHUNKSIZE)
-			{
-				chunk->length = index + 1;
-				chunk->value[index] = 0;
-				printf("extending within chunk, now %i wide\n", index);
-			}
-			
-			else
-			{
-				append(self, newChunk());
-				chunk = self->last;
-				chunk->length++;
-				index = 0;
-				printf("appending a new chunk\n");
-			}
-		}
-		
-		
-		value = *p;
-		addWithCarry(self,chunk,index++,value);
-		p = next(iterator);
-	}
-	
-	return self;
 	
 }
 
