@@ -227,116 +227,47 @@ BigInt * add(BigInt * self, BigInt * arg)
 	
 	
 	
-	unsigned int sum, carry = 0;
-	int li = 0, ri = 0; // left index, right index
-	Chunk * lc = self->first; //left chunk
-	Chunk * rc = arg->first; // right chunk
+	unsigned int sum, carry = 0, lv, rv;
 	
-	if (!lc)
+	Iterator * li = iterate(self);
+	Iterator * ri = iterate(arg);
+	
+	if (!li->chunk)
 	{
-		append(self, newChunk());
-		lc = self->first;
-		lc->value[0] = 0;
-		lc->length++;
+		li->chunk = newChunk();
+		li->chunk->value[0] = 0;
+		li->chunk->length++;
+		append(self, li->chunk);
 	}
 	
-	//get first index
-	while (li >= lc->length) lc = lc->next;
-	while (ri >= rc->length) rc = rc->next;
-	
-	while (rc)
+	while (ri->chunk)
 	{
-		for (ri = 0; ri < rc->length; ri++)
-		{
-			
-			sum = carry + lc->value[li] + rc->value[ri];
-			if (sum < lc->value[li] || sum < rc->value[ri]) carry = 1;
-			else carry = 0;
-			
-			//increment left index
-			li++;
-			if (li == lc->length) // end of this chunk?
-			{
-				if (lc->next) // is there a next chunk?
-				{
-					li = 0;
-					lc = lc->next;
-					#ifdef BIGINT_DEBUG
-					if (li == lc->length);
-					{
-						printf("empty chunk in add()\n");
-						return NULL;
-					}
-					#endif
-				}
-				
-				else if (lc->length < CHUNKSIZE)
-				{
-					lc->value[li] = 0; lc->length++;
-				}
-				
-				else
-				{
-					lc = newChunk();
-					append(self,lc);
-					lc->value[0] = 0; lc->length++;
-				}
-			}
-		}
+		lv = IT_get(li);
+		rv = IT_get(ri);
 		
-		//increment right chunk
-		do {
-			rc = rc->next;
-		} while (rc && rc->length);
+		sum = carry + lv + rv;
 		
+		if (sum < lv || sum < rv) carry = 1;
+		else carry = 0;
+		
+		IT_set(li, sum);
+		IT_next_with_extend(li);
+		IT_next(ri);
 	}
 	
 	while (carry)
 	{
-		sum = lc->value[li] + carry;
-		if (sum != 0)
-		{
-			carry = 0;
-		}
+		lv = IT_get(li);
 		
-		else //increment left index
-		{
-			
-			li++;
-			if (li == lc->length) // end of this chunk?
-			{
-				if (lc->next) // is there a next chunk?
-				{
-					li = 0;
-					lc = lc->next;
-					#ifdef BIGINT_DEBUG
-					if (!lc->length);
-					{
-						printf("empty chunk in add()\n");
-						return NULL;
-					}
-					#endif
-				}
-				
-				else if (lc->length < CHUNKSIZE)
-				{
-					lc->value[li] = 0; lc->length++;
-				}
-				
-				else
-				{
-					lc = newChunk();
-					append(self,lc);
-					lc->value[0] = 0; lc->length++;
-				}
-				
-			} // done finding next real chunk
-			
-		} //done incrementing
+		sum = carry + lv;
+		
+		IT_set(li, sum);
+		
+		if (sum > 0) carry = 0;
+		else IT_next_with_extend(li);
 		
 	} // done doing final carry
 	
-	// finally done for good
 	return self;
 }
 
