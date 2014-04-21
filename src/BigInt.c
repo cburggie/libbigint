@@ -6,6 +6,9 @@
 #define MIN(a,b) a < b ? a : b
 #define MAX(a,b) a > b ? a : b
 
+/* ##### types ##### */
+typedef struct Iterator Iterator;
+
 /* ##### structures ##### */
 
 struct BigInt
@@ -16,9 +19,22 @@ struct BigInt
 	int length; //length in chunks
 };
 
+struct Iterator
+{
+	BigInt * obj;
+	Chunk * chunk;
+	int index;
+};
+
 
 
 /* ##### private member declarations ##### */
+
+static Iterator * iterate(BigInt * obj);
+static Iterator * IT_next(Iterator * self);
+static Iterator * IT_next_with_extend(Iterator * self);
+static Iterator * IT_set(Iterator * self, unsigned int value);
+static unsigned int IT_get(Iterator * self);
 
 static int reset(BigInt * self);
 static int append(BigInt * self, Chunk * chunk);
@@ -327,6 +343,121 @@ BigInt * add(BigInt * self, BigInt * arg)
 
 
 /* ##### private member definitions ##### */
+
+static Iterator * iterate(BigInt * obj)
+{
+	if (!obj) return NULL;
+	
+	Iterator * self = (Iterator *) malloc(sizeof(Iterator));
+	if (!self)
+	{
+		printf("Memory allocation error.\n");
+		return NULL;
+	}
+	
+	self->obj = obj;
+	self->chunk = obj->first;
+	self->index = 0;
+	while (self->chunk && !self->chunk->length)
+	{
+		IT_next(self);
+	}
+	
+	return self;
+	
+}
+
+
+
+static Iterator * IT_next(Iterator * self)
+{
+	if (!self)
+	{
+		#ifdef BIGINT_DEBUG
+		printf("IT_next() passed null argument\n");
+		#endif
+		return NULL;
+	}
+	
+	if (!self->chunk) return NULL;
+	
+	self->index++;
+	
+	if (self->index >= self->chunk->length) // end of this chunk?
+	{
+		
+		self->index = 0;
+		do {
+			
+			self->chunk = self->chunk->next;
+			
+		} while (self->chunk && !self->chunk->length);
+		
+	}
+	
+	if (!self->chunk) return NULL;
+	
+	return self;
+}
+
+
+
+static Iterator * IT_next_with_extend(Iterator * self)
+{
+	if (!self) return NULL;
+	
+	if (!IT_next(self))
+	{
+		self->chunk = self->obj->last;
+		
+		if (!self->chunk && self->chunk->length < CHUNKSIZE)
+		{
+			self->index = self->chunk->length;
+			self->chunk->length++;
+			return self;
+		}
+		
+		else
+		{
+			self->chunk = newChunk();
+			
+			self->chunk->value[0] = 0;
+			self->chunk->length++;
+			self->index = 0;
+			
+			append(self->obj, self->chunk);
+		}
+	}
+	
+	return self;
+}
+
+
+
+static Iterator * IT_set(Iterator * self, unsigned int value)
+{
+	if (!self || !self->chunk) return NULL;
+	
+	self->chunk->value[self->index] = value;
+	
+	return self;
+}
+
+
+
+static unsigned int IT_get(Iterator * self)
+{
+	if (!self) return 0;
+	
+	if (self->chunk)
+	{
+		return self->chunk->value[self->index];
+	}
+	
+	else return 0;
+}
+
+
 
 static int reset(BigInt * self)
 {
