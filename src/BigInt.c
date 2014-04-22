@@ -1,6 +1,5 @@
 #include <BigInt.h>
 #include <Chunk.h>
-#include <Iterator.h>
 #include <stdlib.h>
 
 #define ERROR(x) if(x) return 1
